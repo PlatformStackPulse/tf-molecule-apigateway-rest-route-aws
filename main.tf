@@ -1,5 +1,6 @@
 # Molecule: API Gateway REST Route (Resource + Method + Integration + Lambda Permission)
 # Creates a complete API Gateway route with Lambda integration in a single module call.
+# Includes an OPTIONS method with MOCK integration for CORS preflight (no auth required).
 
 module "resource" {
   source = "git::https://github.com/PlatformStackPulse/tf-atom-apigateway-resource-aws.git?ref=351a91d73d68e5334160cd56ed844267e5c89d67"
@@ -48,4 +49,61 @@ module "lambda_permission" {
   source_arn    = "${var.execution_arn}/*/${var.http_method}/${var.path_part}"
 
   depends_on = [module.integration]
+}
+
+# =============================================================================
+# OPTIONS method for CORS preflight (always NONE auth, MOCK integration)
+# Browsers send OPTIONS before any cross-origin request with custom headers.
+# Without this, authenticated routes reject preflight → CORS error.
+# =============================================================================
+resource "aws_api_gateway_method" "options" {
+  rest_api_id   = var.rest_api_id
+  resource_id   = module.resource.id
+  http_method   = "OPTIONS"
+  authorization = "NONE"
+
+  depends_on = [module.resource]
+}
+
+resource "aws_api_gateway_integration" "options" {
+  rest_api_id = var.rest_api_id
+  resource_id = module.resource.id
+  http_method = aws_api_gateway_method.options.http_method
+  type        = "MOCK"
+
+  request_templates = {
+    "application/json" = "{\"statusCode\": 200}"
+  }
+
+  depends_on = [aws_api_gateway_method.options]
+}
+
+resource "aws_api_gateway_method_response" "options_200" {
+  rest_api_id = var.rest_api_id
+  resource_id = module.resource.id
+  http_method = aws_api_gateway_method.options.http_method
+  status_code = "200"
+
+  response_parameters = {
+    "method.response.header.Access-Control-Allow-Headers" = true
+    "method.response.header.Access-Control-Allow-Methods" = true
+    "method.response.header.Access-Control-Allow-Origin"  = true
+  }
+
+  depends_on = [aws_api_gateway_integration.options]
+}
+
+resource "aws_api_gateway_integration_response" "options_200" {
+  rest_api_id = var.rest_api_id
+  resource_id = module.resource.id
+  http_method = aws_api_gateway_method.options.http_method
+  status_code = aws_api_gateway_method_response.options_200.status_code
+
+  response_parameters = {
+    "method.response.header.Access-Control-Allow-Headers" = "'Content-Type,Authorization,X-Amz-Date,X-Api-Key'"
+    "method.response.header.Access-Control-Allow-Methods" = "'GET,POST,PUT,DELETE,OPTIONS'"
+    "method.response.header.Access-Control-Allow-Origin"  = "'*'"
+  }
+
+  depends_on = [aws_api_gateway_method_response.options_200]
 }
