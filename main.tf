@@ -41,6 +41,7 @@ module "lambda_permission" {
   source = "git::https://github.com/PlatformStackPulse/tf-atom-lambda-permission-aws.git?ref=f9cb20f9bfbff65fbc58b9f7eacafc418375aef0"
 
   context       = module.this.context
+  attributes    = [var.path_part]
   action        = "lambda:InvokeFunction"
   function_name = var.function_name
   principal     = "apigateway.amazonaws.com"
