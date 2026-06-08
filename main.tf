@@ -46,7 +46,7 @@ module "lambda_permission" {
   action        = "lambda:InvokeFunction"
   function_name = var.function_name
   principal     = "apigateway.amazonaws.com"
-  source_arn    = "${var.execution_arn}/*/${var.http_method}/${var.path_part}"
+  source_arn    = "${var.execution_arn}/*"
 
   depends_on = [module.integration]
 }
