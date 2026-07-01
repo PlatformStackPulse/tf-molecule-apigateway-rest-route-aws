@@ -1,32 +1,35 @@
 # tf-molecule-apigateway-rest-route-aws
 
-Terraform molecule that creates a complete API Gateway REST route with Lambda integration.
+Terraform molecule that creates a complete API Gateway REST route — resource + method + Lambda proxy integration + invoke permission — with built-in CORS preflight, in a single module call.
 
-## Components (Atoms)
+## Features
 
-- `tf-atom-apigateway-resource-aws` — API Gateway resource (path)
-- `tf-atom-apigateway-method-aws` — HTTP method configuration
-- `tf-atom-apigateway-integration-aws` — Lambda proxy integration
-- `tf-atom-lambda-permission-aws` — Lambda invoke permission for API Gateway
+- **Full route in one call** — composes four atoms (`tf-atom-apigateway-resource-aws`, `tf-atom-apigateway-method-aws`, `tf-atom-apigateway-integration-aws`, `tf-atom-lambda-permission-aws`) into a single API Gateway path with a working Lambda integration.
+- **Lambda proxy integration** — wires the method to a Lambda function via `AWS_PROXY` integration and grants API Gateway permission to invoke it (`lambda:InvokeFunction` scoped to the API execution ARN).
+- **Configurable method & authorization** — pick the `http_method` (defaults to `ANY`) and `authorization` type (`NONE`, `AWS_IAM`, `CUSTOM`, `COGNITO_USER_POOLS`), passing an `authorizer_id` for custom/Cognito auth.
+- **Built-in CORS preflight** — automatically adds an `OPTIONS` method with a `MOCK` integration (always `NONE` auth) returning the `Access-Control-Allow-*` headers, so authenticated cross-origin routes do not fail browser preflight.
+- **Nestable paths** — feed one route's `resource_id` as another route's `parent_resource_id` to build nested paths (e.g. `/contact/{id}`).
+- **tf-label context chaining** — consumes `module.this.context` for consistent naming/tagging; set `enabled = false` to create nothing.
 
 ## Usage
 
 ```hcl
 module "route_contact" {
-  source = "git::https://github.com/PlatformStackPulse/tf-molecule-apigateway-rest-route-aws.git?ref=main"
+  source = "git::https://github.com/PlatformStackPulse/tf-molecule-apigateway-rest-route-aws.git?ref=v1.0.0"
 
   context            = module.this.context
   rest_api_id        = module.rest_api.rest_api_id
   parent_resource_id = module.rest_api.root_resource_id
   path_part          = "contact"
+  http_method        = "POST"
   integration_uri    = module.lambda_functions["contact-form"].invoke_arn
   function_name      = module.lambda_functions["contact-form"].function_name
   execution_arn      = module.rest_api.execution_arn
 }
 
-# Nested route (child of contact)
+# Nested route (child of contact): /contact/{id}
 module "route_contact_id" {
-  source = "git::https://github.com/PlatformStackPulse/tf-molecule-apigateway-rest-route-aws.git?ref=main"
+  source = "git::https://github.com/PlatformStackPulse/tf-molecule-apigateway-rest-route-aws.git?ref=v1.0.0"
 
   context            = module.this.context
   rest_api_id        = module.rest_api.rest_api_id
@@ -37,30 +40,6 @@ module "route_contact_id" {
   execution_arn      = module.rest_api.execution_arn
 }
 ```
-
-## Inputs
-
-| Name | Description | Type | Default | Required |
-|------|-------------|------|---------|----------|
-| rest_api_id | ID of the REST API | string | - | yes |
-| parent_resource_id | Parent resource ID | string | - | yes |
-| path_part | Route path segment | string | - | yes |
-| http_method | HTTP method | string | "ANY" | no |
-| authorization | Auth type | string | "NONE" | no |
-| authorizer_id | Authorizer ID | string | null | no |
-| integration_uri | Lambda invoke ARN | string | - | yes |
-| function_name | Lambda function name | string | - | yes |
-| execution_arn | API execution ARN | string | - | yes |
-
-## Outputs
-
-| Name | Description |
-|------|-------------|
-| resource_id | API Gateway resource ID |
-| method_http_method | HTTP method |
-| integration_uri | Integration URI |
-
-## Module Documentation
 
 <!-- BEGIN_TF_DOCS -->
 ### Requirements
@@ -134,3 +113,13 @@ module "route_contact_id" {
 | <a name="output_method_http_method"></a> [method\_http\_method](#output\_method\_http\_method) | HTTP method of the created method |
 | <a name="output_resource_id"></a> [resource\_id](#output\_resource\_id) | ID of the created API Gateway resource |
 <!-- END_TF_DOCS -->
+
+## Tests
+
+Unit tests live under `tests/unit/` and run plan-only against a mock AWS provider (no real AWS credentials or resources):
+
+```bash
+terraform init -backend=false && terraform test -test-directory=tests/unit
+```
+
+Or via the Makefile (`make test`), which runs the same unit suite.
