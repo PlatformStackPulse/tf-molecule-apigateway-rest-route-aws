@@ -100,8 +100,8 @@ resource "aws_api_gateway_integration_response" "options_200" {
   status_code = aws_api_gateway_method_response.options_200.status_code
 
   response_parameters = {
-    "method.response.header.Access-Control-Allow-Headers" = "'Content-Type,Authorization,X-Amz-Date,X-Api-Key'"
-    "method.response.header.Access-Control-Allow-Methods" = "'GET,POST,PUT,DELETE,OPTIONS'"
+    "method.response.header.Access-Control-Allow-Headers" = "'${var.cors_allowed_headers}'"
+    "method.response.header.Access-Control-Allow-Methods" = "'${var.cors_allowed_methods}'"
     "method.response.header.Access-Control-Allow-Origin"  = "'*'"
   }
 

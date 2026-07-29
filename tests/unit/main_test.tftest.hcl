@@ -62,3 +62,50 @@ run "nested_path_plans" {
     error_message = "method_http_method output should reflect the nested route http_method"
   }
 }
+
+# ---------------------------------------------------------------------------
+# Test: the OPTIONS preflight advertises Idempotency-Key by default.
+#
+# This is a regression test for a full outage, not a style preference. A client
+# that mints replay keys sends `Idempotency-Key` on every mutation; when the
+# MOCK preflight omitted it, the browser refused EVERY cross-origin POST/PUT/
+# PATCH/DELETE before it left the page — login, register, checkout — and the
+# failure looked like a network error, so nothing in the API's logs showed it.
+# The header list is baked into the mock response, so no runtime code can
+# compensate: if this assertion goes red, the fix belongs here.
+# ---------------------------------------------------------------------------
+run "preflight_allows_idempotency_key_by_default" {
+  command = plan
+
+  assert {
+    condition     = strcontains(output.cors_allowed_headers, "Idempotency-Key")
+    error_message = "the default preflight header list must allow Idempotency-Key"
+  }
+
+  assert {
+    condition     = aws_api_gateway_integration_response.options_200.response_parameters["method.response.header.Access-Control-Allow-Headers"] == "'${var.cors_allowed_headers}'"
+    error_message = "the OPTIONS integration response must return the configured header list"
+  }
+}
+
+# ---------------------------------------------------------------------------
+# Test: a caller can narrow or extend the preflight header list.
+# ---------------------------------------------------------------------------
+run "preflight_headers_are_configurable" {
+  command = plan
+
+  variables {
+    cors_allowed_headers = "Content-Type,X-Tenant-Id"
+    cors_allowed_methods = "GET,OPTIONS"
+  }
+
+  assert {
+    condition     = aws_api_gateway_integration_response.options_200.response_parameters["method.response.header.Access-Control-Allow-Headers"] == "'Content-Type,X-Tenant-Id'"
+    error_message = "cors_allowed_headers should drive the OPTIONS integration response"
+  }
+
+  assert {
+    condition     = aws_api_gateway_integration_response.options_200.response_parameters["method.response.header.Access-Control-Allow-Methods"] == "'GET,OPTIONS'"
+    error_message = "cors_allowed_methods should drive the OPTIONS integration response"
+  }
+}

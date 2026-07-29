@@ -17,6 +17,7 @@ Terraform molecule that creates a complete API Gateway REST route — resource +
 - **Lambda proxy integration** — wires the method to a Lambda function via `AWS_PROXY` integration and grants API Gateway permission to invoke it (`lambda:InvokeFunction` scoped to the API execution ARN).
 - **Configurable method & authorization** — pick the `http_method` (defaults to `ANY`) and `authorization` type (`NONE`, `AWS_IAM`, `CUSTOM`, `COGNITO_USER_POOLS`), passing an `authorizer_id` for custom/Cognito auth.
 - **Built-in CORS preflight** — automatically adds an `OPTIONS` method with a `MOCK` integration (always `NONE` auth) returning the `Access-Control-Allow-*` headers, so authenticated cross-origin routes do not fail browser preflight.
+- **Configurable preflight allow-list** — `cors_allowed_headers` / `cors_allowed_methods` drive what the preflight advertises. Because the mock answers the `OPTIONS` request, no Lambda can widen this at runtime: a custom request header missing from `cors_allowed_headers` is refused by the browser *before* the real request is sent, and the caller sees an opaque network error rather than an HTTP status. The default includes `Idempotency-Key` for clients that mint replay keys on mutations.
 - **Nestable paths** — feed one route's `resource_id` as another route's `parent_resource_id` to build nested paths (e.g. `/contact/{id}`).
 - **tf-label context chaining** — consumes `module.this.context` for consistent naming/tagging; set `enabled = false` to create nothing.
 
@@ -54,20 +55,20 @@ module "route_contact_id" {
 ### Requirements
 
 | Name | Version |
-|------|---------|
+| ---- | ------- |
 | <a name="requirement_terraform"></a> [terraform](#requirement\_terraform) | >= 1.11.3 |
 | <a name="requirement_aws"></a> [aws](#requirement\_aws) | >= 5.0.0 |
 
 ### Providers
 
 | Name | Version |
-|------|---------|
-| <a name="provider_aws"></a> [aws](#provider\_aws) | >= 5.0.0 |
+| ---- | ------- |
+| <a name="provider_aws"></a> [aws](#provider\_aws) | 6.56.0 |
 
 ### Modules
 
 | Name | Source | Version |
-|------|--------|---------|
+| ---- | ------ | ------- |
 | <a name="module_integration"></a> [integration](#module\_integration) | git::https://github.com/PlatformStackPulse/tf-atom-apigateway-integration-aws.git | c9eedb8907fc0a47be8292f26ea89166546edae4 |
 | <a name="module_lambda_permission"></a> [lambda\_permission](#module\_lambda\_permission) | git::https://github.com/PlatformStackPulse/tf-atom-lambda-permission-aws.git | f9cb20f9bfbff65fbc58b9f7eacafc418375aef0 |
 | <a name="module_method"></a> [method](#module\_method) | git::https://github.com/PlatformStackPulse/tf-atom-apigateway-method-aws.git | 2eeef49f20745d13f75515f1a4c776b60163b6db |
@@ -77,7 +78,7 @@ module "route_contact_id" {
 ### Resources
 
 | Name | Type |
-|------|------|
+| ---- | ---- |
 | [aws_api_gateway_integration.options](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/api_gateway_integration) | resource |
 | [aws_api_gateway_integration_response.options_200](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/api_gateway_integration_response) | resource |
 | [aws_api_gateway_method.options](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/api_gateway_method) | resource |
@@ -86,7 +87,7 @@ module "route_contact_id" {
 ### Inputs
 
 | Name | Description | Type | Default | Required |
-|------|-------------|------|---------|:--------:|
+| ---- | ----------- | ---- | ------- | :------: |
 | <a name="input_execution_arn"></a> [execution\_arn](#input\_execution\_arn) | API Gateway execution ARN (for permission source\_arn scope) | `string` | n/a | yes |
 | <a name="input_function_name"></a> [function\_name](#input\_function\_name) | Lambda function name (for permission resource) | `string` | n/a | yes |
 | <a name="input_integration_uri"></a> [integration\_uri](#input\_integration\_uri) | Lambda invoke ARN for the integration | `string` | n/a | yes |
@@ -97,6 +98,8 @@ module "route_contact_id" {
 | <a name="input_authorization"></a> [authorization](#input\_authorization) | Authorization type (NONE, AWS\_IAM, CUSTOM, COGNITO\_USER\_POOLS) | `string` | `"NONE"` | no |
 | <a name="input_authorizer_id"></a> [authorizer\_id](#input\_authorizer\_id) | Authorizer ID (required when authorization is CUSTOM or COGNITO\_USER\_POOLS) | `string` | `null` | no |
 | <a name="input_context"></a> [context](#input\_context) | Single object for setting entire context at once.<br/>See description of individual variables for details.<br/>Leave string and numeric variables as `null` to use default value.<br/>Individual variable settings (non-null) override settings in context object,<br/>except for attributes and tags, which are merged. | <pre>object({<br/>    enabled             = optional(bool, true)<br/>    namespace           = optional(string, null)<br/>    tenant              = optional(string, null)<br/>    environment         = optional(string, null)<br/>    stage               = optional(string, null)<br/>    name                = optional(string, null)<br/>    delimiter           = optional(string, null)<br/>    attributes          = optional(list(string), [])<br/>    tags                = optional(map(string), {})<br/>    label_order         = optional(list(string), null)<br/>    regex_replace_chars = optional(string, null)<br/>    id_length_limit     = optional(number, null)<br/>    label_key_case      = optional(string, null)<br/>    label_value_case    = optional(string, null)<br/>    labels_as_tags      = optional(set(string), null)<br/>    descriptor_formats = optional(map(object({<br/>      format = string<br/>      labels = list(string)<br/>    })), {})<br/>  })</pre> | `{}` | no |
+| <a name="input_cors_allowed_headers"></a> [cors\_allowed\_headers](#input\_cors\_allowed\_headers) | Comma-separated request headers returned in the OPTIONS preflight's Access-Control-Allow-Headers. Any custom header the client sends must appear here or the browser blocks the request. | `string` | `"Content-Type,Authorization,X-Amz-Date,X-Api-Key,Idempotency-Key"` | no |
+| <a name="input_cors_allowed_methods"></a> [cors\_allowed\_methods](#input\_cors\_allowed\_methods) | Comma-separated methods returned in the OPTIONS preflight's Access-Control-Allow-Methods. | `string` | `"GET,POST,PUT,PATCH,DELETE,OPTIONS"` | no |
 | <a name="input_delimiter"></a> [delimiter](#input\_delimiter) | Delimiter to be used between ID elements.<br/>Defaults to `-` (hyphen). Set to `""` to use no delimiter at all. | `string` | `null` | no |
 | <a name="input_descriptor_formats"></a> [descriptor\_formats](#input\_descriptor\_formats) | Describe additional descriptors to be output in the `descriptors` output map.<br/>Map of maps. Keys are names of descriptors. Values are maps of the form<br/>`{<br/>   format = string<br/>   labels = list(string)<br/>}`<br/>`format` is a Terraform format string to be passed to the `format()` function.<br/>`labels` is a list of labels, in order, to pass to `format()` function.<br/>Label values will be normalized before being passed to `format()` so they will be<br/>identical to how they appear in `id`.<br/>Default is `{}` (`descriptors` output will be empty). | <pre>map(object({<br/>    format = string<br/>    labels = list(string)<br/>  }))</pre> | `{}` | no |
 | <a name="input_enabled"></a> [enabled](#input\_enabled) | Set to false to prevent the module from creating any resources. | `bool` | `null` | no |
@@ -117,7 +120,9 @@ module "route_contact_id" {
 ### Outputs
 
 | Name | Description |
-|------|-------------|
+| ---- | ----------- |
+| <a name="output_cors_allowed_headers"></a> [cors\_allowed\_headers](#output\_cors\_allowed\_headers) | Request headers the OPTIONS preflight advertises as allowed. A client header missing from this list is blocked by the browser before the request is sent. |
+| <a name="output_cors_allowed_methods"></a> [cors\_allowed\_methods](#output\_cors\_allowed\_methods) | Methods the OPTIONS preflight advertises as allowed. |
 | <a name="output_integration_uri"></a> [integration\_uri](#output\_integration\_uri) | Integration URI |
 | <a name="output_method_http_method"></a> [method\_http\_method](#output\_method\_http\_method) | HTTP method of the created method |
 | <a name="output_resource_id"></a> [resource\_id](#output\_resource\_id) | ID of the created API Gateway resource |
