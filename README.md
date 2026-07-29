@@ -18,6 +18,7 @@ Terraform molecule that creates a complete API Gateway REST route — resource +
 - **Configurable method & authorization** — pick the `http_method` (defaults to `ANY`) and `authorization` type (`NONE`, `AWS_IAM`, `CUSTOM`, `COGNITO_USER_POOLS`), passing an `authorizer_id` for custom/Cognito auth.
 - **Built-in CORS preflight** — automatically adds an `OPTIONS` method with a `MOCK` integration (always `NONE` auth) returning the `Access-Control-Allow-*` headers, so authenticated cross-origin routes do not fail browser preflight.
 - **Configurable preflight allow-list** — `cors_allowed_headers` / `cors_allowed_methods` drive what the preflight advertises. Because the mock answers the `OPTIONS` request, no Lambda can widen this at runtime: a custom request header missing from `cors_allowed_headers` is refused by the browser *before* the real request is sent, and the caller sees an opaque network error rather than an HTTP status. The default includes `Idempotency-Key` for clients that mint replay keys on mutations.
+- **Configurable preflight allow-list** — `cors_allowed_headers` / `cors_allowed_methods` drive what the preflight advertises. Because the mock answers the `OPTIONS` request, no Lambda can widen this at runtime: a custom request header missing from `cors_allowed_headers` is refused by the browser *before* the real request is sent, and the caller sees an opaque network error rather than an HTTP status. The default includes `Idempotency-Key` for clients that mint replay keys on mutations.
 - **Nestable paths** — feed one route's `resource_id` as another route's `parent_resource_id` to build nested paths (e.g. `/contact/{id}`).
 - **tf-label context chaining** — consumes `module.this.context` for consistent naming/tagging; set `enabled = false` to create nothing.
 
@@ -55,20 +56,20 @@ module "route_contact_id" {
 ### Requirements
 
 | Name | Version |
-| ---- | ------- |
+|------|---------|
 | <a name="requirement_terraform"></a> [terraform](#requirement\_terraform) | >= 1.11.3 |
 | <a name="requirement_aws"></a> [aws](#requirement\_aws) | >= 5.0.0 |
 
 ### Providers
 
 | Name | Version |
-| ---- | ------- |
+|------|---------|
 | <a name="provider_aws"></a> [aws](#provider\_aws) | 6.56.0 |
 
 ### Modules
 
 | Name | Source | Version |
-| ---- | ------ | ------- |
+|------|--------|---------|
 | <a name="module_integration"></a> [integration](#module\_integration) | git::https://github.com/PlatformStackPulse/tf-atom-apigateway-integration-aws.git | c9eedb8907fc0a47be8292f26ea89166546edae4 |
 | <a name="module_lambda_permission"></a> [lambda\_permission](#module\_lambda\_permission) | git::https://github.com/PlatformStackPulse/tf-atom-lambda-permission-aws.git | f9cb20f9bfbff65fbc58b9f7eacafc418375aef0 |
 | <a name="module_method"></a> [method](#module\_method) | git::https://github.com/PlatformStackPulse/tf-atom-apigateway-method-aws.git | 2eeef49f20745d13f75515f1a4c776b60163b6db |
@@ -78,7 +79,7 @@ module "route_contact_id" {
 ### Resources
 
 | Name | Type |
-| ---- | ---- |
+|------|------|
 | [aws_api_gateway_integration.options](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/api_gateway_integration) | resource |
 | [aws_api_gateway_integration_response.options_200](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/api_gateway_integration_response) | resource |
 | [aws_api_gateway_method.options](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/api_gateway_method) | resource |
@@ -87,7 +88,7 @@ module "route_contact_id" {
 ### Inputs
 
 | Name | Description | Type | Default | Required |
-| ---- | ----------- | ---- | ------- | :------: |
+|------|-------------|------|---------|:--------:|
 | <a name="input_execution_arn"></a> [execution\_arn](#input\_execution\_arn) | API Gateway execution ARN (for permission source\_arn scope) | `string` | n/a | yes |
 | <a name="input_function_name"></a> [function\_name](#input\_function\_name) | Lambda function name (for permission resource) | `string` | n/a | yes |
 | <a name="input_integration_uri"></a> [integration\_uri](#input\_integration\_uri) | Lambda invoke ARN for the integration | `string` | n/a | yes |
@@ -120,7 +121,7 @@ module "route_contact_id" {
 ### Outputs
 
 | Name | Description |
-| ---- | ----------- |
+|------|-------------|
 | <a name="output_cors_allowed_headers"></a> [cors\_allowed\_headers](#output\_cors\_allowed\_headers) | Request headers the OPTIONS preflight advertises as allowed. A client header missing from this list is blocked by the browser before the request is sent. |
 | <a name="output_cors_allowed_methods"></a> [cors\_allowed\_methods](#output\_cors\_allowed\_methods) | Methods the OPTIONS preflight advertises as allowed. |
 | <a name="output_integration_uri"></a> [integration\_uri](#output\_integration\_uri) | Integration URI |
